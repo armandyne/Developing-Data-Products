@@ -1,0 +1,38 @@
+---
+title: ""
+author: ""
+date: 
+output: html_document
+---
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+library(leaflet)
+library(jsonlite)
+library(purrr)
+library(dplyr)
+```
+
+```{r loadjson, echo=FALSE, message=FALSE}
+fromJSON("./all_atms_info.json") %>% 
+     pluck("atms") %>% 
+     reduce(bind_rows) %>% 
+     select(lat, lng, wtm) %>%
+     rename(popup = wtm) -> atm_df
+     
+```
+
+ATM of Tsesnabank on the map, April 1, 2018
+```{r showmap, echo=FALSE, message=FALSE}
+atm_icon <- makeIcon(
+     iconUrl = "./xxx046-128.png",
+     iconWidth = 31*215/230, iconHeight = 31,
+     iconAnchorX = 31*215/230/2, iconAnchorY = 16)
+
+leaflet() %>%
+     addTiles() %>%
+     addMarkers(lat = atm_df$lat, 
+                lng = atm_df$lng, 
+                popup = atm_df$popup, 
+                icon = atm_icon,
+                clusterOptions = markerClusterOptions())
+```
