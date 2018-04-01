@@ -21,7 +21,7 @@ fromJSON("./all_atms_info.json") %>%
      
 ```
 
-ATM of Tsesnabank on the map, April 1, 2018
+ATM of Tsesnabank on the map, February 1, 2018
 ```{r showmap, echo=FALSE, message=FALSE}
 atm_icon <- makeIcon(
      iconUrl = "./xxx046-128.png",
