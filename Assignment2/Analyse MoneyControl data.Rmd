@@ -1,0 +1,120 @@
+---
+title: "Analyse My Budget using MoneyControl App Database"
+author: "Arman Iskaliyev"
+date: 'April 1, 2018'
+output: 
+     ioslides_presentation:
+          keep_md: yes
+---
+```{r lib, echo=FALSE, message=FALSE, warning=FALSE}
+library(RSQLite)
+library(plotly)
+library(dplyr)
+library(stringr)
+library(lubridate)
+```
+
+```{r fetch_data_db, echo=FALSE, message=FALSE, warning=FALSE}
+db_con <- dbConnect(RSQLite::SQLite(), "./data/MoneyControl.sync")
+
+Categories_df <- dbGetQuery(db_con, "select * from Categories")
+Accounts_df <- dbGetQuery(db_con, "select * from Accounts")
+Bookings_df <- dbGetQuery(db_con, "select * from Bookings")
+
+dbDisconnect(db_con)
+```
+
+```{r proc_data1, echo=FALSE, message=FALSE, warning=FALSE}
+select(Categories_df, GUID, Name, Flags) %>% 
+     mutate(Flags = ifelse(Flags==1, "Incomes", "Expenses"),
+            Name = case_when(
+                 str_detect(Name, "Медуслуги") ~ "Health Care",
+                 str_detect(Name, "Погашение кредита") ~ "Loan payments",
+                 str_detect(Name, "Еда|Напитки|Покупки|Шмотки") ~ "Food and Groceries",
+                 str_detect(Name, "Квартплата|Расходы по дому") ~ "Utilities", 
+                 str_detect(Name, "Интернет 3G|Интернет проводной|Сотовая") ~ "Internet/Phone", 
+                 str_detect(Name, "Квартира|Арендный") ~ "Mortgage Payments", 
+                 str_detect(Name, "Образование") ~ "Education", 
+                 str_detect(Name, "Автобус|Такси") ~ "Transport", 
+                 str_detect(Name, "Сигареты") ~ "Cigarettes",
+                 str_detect(Name, "Подарки|Сбор") ~ "Gifts",
+                 str_detect(Name, "Кинотеатр|Сауна|Бухалово") ~ "Entertainment",
+                 str_detect(Name, "Зарплата|Отпускные") ~ "Salary",
+                 str_detect(Name, "Ремонт квартиры") ~ "Repairs",
+                 str_detect(Name, "Вознаграждение") ~ "Deposit interests",
+                 TRUE ~ "Others"
+            )
+            ) -> Categories_df
+
+```
+
+```{r proc_data2, echo=FALSE, message=FALSE, warning=FALSE}
+select(Bookings_df, Value, Date, Category) %>% 
+     inner_join(Categories_df, by = c("Category" = "GUID")) %>%
+     select(-Category) %>%
+     mutate(Date = ymd(Date)) %>%
+     rename(Category = Name, Amount = Value) -> work_df
+```
+
+
+## Expenses vs. Incomes for the period 2013-2018
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+p1 <- work_df %>% 
+     filter(Flags=="Expenses") %>%
+     mutate(year = as.factor(year(Date))) %>%
+     group_by(year, Flags) %>%
+     summarise(Amount = sum(Amount)) %>%
+     plot_ly(x = ~year, y = ~Amount) %>%
+     add_bars(name = "Expenses")
+     
+p2 <- work_df %>% 
+     filter(Flags!="Expenses") %>%
+     mutate(year = as.factor(year(Date))) %>%
+     group_by(year, Flags) %>%
+     summarise(Amount = sum(Amount)) %>%
+     plot_ly(x = ~year, y = ~Amount) %>%
+     add_bars(name = "Incomes")
+
+subplot(p1, p2, shareY = TRUE, titleX = TRUE)
+```
+
+## Expenses vs. Incomes for the period 2013-2018, part 2
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+work_df %>%
+     #filter(Flags=="Expenses") %>% 
+     mutate(Date = year(Date)) %>%
+     group_by(Date, Flags) %>%
+     summarise(Amount = sum(Amount)) %>%
+     ungroup() %>%
+     plot_ly(x = ~Date, y = ~Amount) %>%
+     add_lines(color = ~factor(Flags), alpha = 0.2) %>%
+     layout(yaxis = list(type = "log"))
+```
+
+## Expenses by Categories for the period 2013-2018
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+work_df %>%
+     filter(Flags=="Expenses" & Category != "Others") %>%
+     mutate(year = as.factor(year(Date))) %>%
+     group_by(year, Category) %>%
+     summarise(Amount = sum(Amount)) %>%
+     plot_ly(x = ~year, y = ~Amount, color = ~Category) %>%
+     add_bars() %>%
+     layout(barmode = "stack")
+```
+
+## Incomes by Categories for the period 2013-2018
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+work_df %>%
+     filter(Flags=="Incomes") %>%
+     mutate(year = as.factor(year(Date))) %>%
+     group_by(year, Category) %>%
+     summarise(Amount = sum(Amount)) %>%
+     plot_ly(x = ~year, y = ~Amount, color = ~Category) %>%
+     add_bars() %>%
+     layout(barmode = "stack")
+```
