@@ -1,0 +1,80 @@
+---
+title: "Draft"
+author: "Arman Iskaliyev"
+date: '8 апреля 2018 г '
+output: html_document
+---
+
+```{r}
+library(rgdal)
+states_map <- readOGR("./data/cb_2016_us_state_20m/cb_2016_us_state_20m.shp", 
+                      layer = "cb_2016_us_state_20m", 
+                      verbose = FALSE)
+
+saveRDS(states_map, "./data/states_map_shp.rds")
+```
+
+```{r}
+library(leaflet)
+library(dplyr)
+library(shiny)
+library(stringr)
+library(plotly)
+
+ds_agg <- count(ds, State)
+
+states$STUSPS
+
+leaflet_data  <- merge(states_map, ds_agg, by.x = "STUSPS", by.y ="State")
+leaflet_data <- leaflet_data[!is.na(leaflet_data$n),]
+
+bins <- c(0, 10, 20, 50, 100, 200, 500, 1000, Inf)
+my_palette <- colorBin("viridis", domain = leaflet_data$n, bins = bins)
+my_labels <- sprintf("<strong>%s</strong><br>%g people were fatally shot by police",
+                     leaflet_data$NAME, leaflet_data$n) %>% lapply(htmltools::HTML)
+
+ds_map <- ds %>% 
+     mutate(PopupContent = str_c(sprintf("<h3>%s, %s</h3>", City, State),
+                            sprintf("Date: %s<br>", as.character(Date)),
+                            sprintf("%s aged %s<br>", as.character(Age), Gender),
+                            sprintf("Armed with: %s<br><hr>", Armed),
+                            MannerOfDeath
+                            ))
+```
+
+```{r}
+leaflet(data = leaflet_data) %>%
+     addTiles() %>%
+     addPolygons(fillColor = ~my_palette(n), 
+                 fillOpacity = 0.5, 
+                 weight = 1,
+                 color = "white",
+                 opacity = 0.5,
+                 highlight = highlightOptions(
+                      weight = 3,
+                      color = "#666",
+                      bringToFront = TRUE,
+                      dashArray = ""),
+                 label = my_labels) %>% 
+     addLegend(title = "Number of shooting", 
+               pal = my_palette, 
+               values = ~n, 
+               position = "bottomright") %>%
+     addMarkers(data = ds_map, 
+                lat = ~Lat, lng = ~Lng, 
+                clusterOptions = markerClusterOptions(),
+                popup = ~PopupContent) %>%
+     setView(lng = -93.85, lat = 37.45, zoom = 4)
+```
+
+```{r}
+plot_ly(data = ds, x = ~Year, color = ~Race) %>% add_histogram() 
+
+plot_ly(data = ds, x = ~Year, color = ~MannerOfDeath) %>% add_histogram()
+
+plot_ly(data = ds, x = ~Year, color = ~Gender) %>% add_histogram()
+
+plot_ly(data = ds, x = ~Year, color = ~Flee) %>% add_histogram()
+
+plot_ly(data = ds, x = ~Year, color = ~MentalIllness) %>% add_histogram()
+```

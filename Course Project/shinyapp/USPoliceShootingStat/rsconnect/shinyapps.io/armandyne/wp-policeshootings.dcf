@@ -1,0 +1,13 @@
+name: wp-policeshootings
+title: WP-PoliceShootings
+username:
+account: armandyne
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 317735
+bundleId: 1308509
+url: https://armandyne.shinyapps.io/wp-policeshootings/
+when: 1523211566.71735
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: about.html

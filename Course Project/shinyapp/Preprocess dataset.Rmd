@@ -1,0 +1,142 @@
+---
+title: "Draft"
+author: "Arman Iskaliyev"
+date: "3 апреля 2018 г "
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+
+df <- read_csv("./data/fatal-police-shootings-data.csv")
+#glimpse(df)
+
+df <- df %>% 
+     select(-id, -name) %>%
+     #left_join(data.frame(state = state.abb, state_name = state.name), by = "state") 
+
+# df %>% 
+#      mutate(state_city = paste(city, state)) %>%
+#      left_join(select(us.cities, name, lat, long), by=c("state_city"="name")) -> df 
+
+#df <- sample_n(df, 10)
+
+options(geonamesUsername="armandyne")
+get_geo <- function(city, state) {
+  ws_res <- GNsearch(name_equals = city, 
+                     country="US", 
+                     adminCode1 = state, 
+                     featureClass = "P",
+                     orderby = "population")  
+  out <- data.frame(city = ws_res$toponymName[1], 
+                    state = ws_res$adminCode1[1], 
+                    lat = ws_res$lat[1], 
+                    long = ws_res$lng[1],
+                    stringsAsFactors = FALSE)
+  if(nrow(out)==1) {
+       out$city <- as.character(city)
+  }
+  return(out)  
+}
+
+df %>%
+     distinct(city, state) %>% 
+     transpose() %>%
+     purrr::map_df(~get_geo(.[1],.[2])) %>% 
+     right_join(df) -> df
+
+df %>%
+     map_int(~sum(is.na(.)))
+
+df <- df %>% mutate(city = str_replace(city, "County|Township", ""),
+                    flee = ifelse(is.na(flee), "Unknown", flee),
+                    armed = ifelse(is.na(armed), "Unknown", armed),
+                    gender = case_when(
+                         gender == "M" ~ "Male",
+                         gender == "F" ~ "Female",
+                         TRUE ~ "Unknown" 
+                    ),
+                    race = case_when(
+                         race == "W" ~ "White, non-Hispanic",
+                         race == "B" ~ "Black, non-Hispanic",
+                         race == "A" ~ "Asian",
+                         race == "N" ~ "Native American",
+                         race == "H" ~ "Hispanic",
+                         race == "O" ~ "Other",
+                         TRUE ~ "Unknown" 
+                    ))
+
+df %>% filter_at(vars(-c(lat, long)), all_vars(!is.na(.))) -> df
+
+#factors_var <- names(df)[!names(df) %in% c("date", "armed", "age", "city")]
+#df %>% modify_at(factors_var, as.factor) -> df
+
+df %>% filter_all(any_vars(is.na(.))) %>% 
+     distinct(city, state) %>%
+     transpose() %>%
+     purrr::map_df(~get_geo(.[[1]],.[[2]])) %>% 
+     right_join(select(filter_all(df, any_vars(is.na(.))),-c(lat, long)), by = c("city", "state")) %>% 
+     bind_rows(filter_all(df, all_vars(!is.na(.)))) -> df.last
+
+df.last %>%
+     map_int(~sum(is.na(.)))
+
+get_geo2 <- function(city, state) {
+  ws_res <- GNsearch(name = city, 
+                     country="US", 
+                     adminCode1 = state, 
+                     featureClass = "P",
+                     orderby = "population")  
+  out <- data.frame(city = ws_res$toponymName[1], 
+                    state = ws_res$adminCode1[1], 
+                    lat = ws_res$lat[1], 
+                    long = ws_res$lng[1],
+                    stringsAsFactors = FALSE)
+  if(nrow(out)==1) {
+       out$city <- as.character(city)
+  }
+  return(out)  
+}
+
+df <- df.last 
+
+df.last %>% filter_all(any_vars(is.na(.))) %>% 
+     distinct(city, state) %>%
+     transpose() %>%
+     purrr::map_df(~get_geo2(.[[1]],.[[2]])) %>%
+     right_join(select(filter_all(df.last, any_vars(is.na(.))),-c(lat, long)), by = c("city", "state")) %>% 
+     bind_rows(filter_all(df.last, all_vars(!is.na(.)))) -> df.last
+
+df %>% filter_all(all_vars(!is.na(.))) -> df
+getwd()
+
+df <- filter(df, gender != "Unknown")
+
+df <- df %>%
+     left_join(data.frame(state = state.abb, state_name = state.name, stringsAsFactors = FALSE), 
+               by = "state") %>% 
+     mutate(state_name = ifelse(is.na(state_name), "District of Columbia", state_name),
+            year = year(date))
+
+df %>% rename(City = city,
+            State = state,
+            Date = date,
+            Age = age,
+            Race = race,
+            Gender = gender,
+            Year = year,
+            Armed = armed,
+            ThreatLevel = threat_level,
+            StateName = state_name,
+            Lng = long,
+            Lat = lat,
+            MentalIllness = signs_of_mental_illness,
+            MannerOfDeath = manner_of_death,
+            Flee = flee,
+            BodyCamera = body_camera) -> df
+
+write_csv(df, "./data/dataset.csv")
+
+saveRDS(df, "./data/dataset.rds")
+```
+
