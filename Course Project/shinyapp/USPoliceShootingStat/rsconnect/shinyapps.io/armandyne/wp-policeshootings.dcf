@@ -5,9 +5,9 @@ account: armandyne
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 317735
-bundleId: 1308509
+bundleId: 1310378
 url: https://armandyne.shinyapps.io/wp-policeshootings/
-when: 1523211566.71735
+when: 1523300685.32188
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: about.html

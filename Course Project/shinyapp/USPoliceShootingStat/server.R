@@ -20,9 +20,20 @@ shinyServer(function(input, output) {
                count(State)
      })
      
-     output$datatable <- renderDataTable({filtered_ds()})
+     output$datatable <- renderDataTable({
+          if (nrow(filtered_ds()) == 0) {
+               return(NULL)
+          }
+          
+          filtered_ds()
+          
+     })
      
      output$plot1 <- renderPlotly({
+          if (nrow(filtered_ds()) == 0) {
+               return(NULL)
+          }
+          
           plot_ly(x = filtered_ds()$Age, type = "histogram", name = "Histogram") %>% 
                add_trace(x = density(filtered_ds()$Age)$x, 
                          y = density(filtered_ds()$Age)$y, 
@@ -36,30 +47,54 @@ shinyServer(function(input, output) {
      })
 
      output$plot2 <- renderPlotly({
+          if (nrow(filtered_ds()) == 0) {
+               return(NULL)
+          }
+          
           plot_ly(data = filtered_ds(), x = ~Year, color = ~MannerOfDeath) %>% 
                add_histogram() %>% 
                layout(title = "Manner Of Death")
      })
      
      output$plot3 <- renderPlotly({
+          if (nrow(filtered_ds()) == 0) {
+               return(NULL)
+          }
+          
           plot_ly(data = filtered_ds(), x = ~Year, color = ~Armed) %>% 
                add_histogram() %>% 
                layout(title = "Armed", yaxis = list(type = "log"))
      })
      
      output$plot4 <- renderPlotly({
+          if (nrow(filtered_ds()) == 0) {
+               return(NULL)
+          }
+          
           plot_ly(data = filtered_ds(), x = ~Year, color = ~Flee) %>% 
                add_histogram() %>% 
                layout(title = "Flee")
      })
      
      output$plot5 <- renderPlotly({
+          if (nrow(filtered_ds()) == 0) {
+               return(NULL)
+          }
+          
           plot_ly(data = filtered_ds(), x = ~Year, color = ~MentalIllness) %>% 
                add_histogram() %>% 
                layout(title = "Mental Illness")
      })
      
      output$map <- renderLeaflet({
+          if (nrow(agg_filtered_ds()) == 0) {
+               return(NULL)
+          }
+          
+          if (nrow(filtered_ds()) == 0) {
+               return(NULL)
+          }
+          
           leaflet_data  <- merge(states_map, agg_filtered_ds(), by.x = "STUSPS", by.y ="State")
           leaflet_data <- leaflet_data[!is.na(leaflet_data$n),]
           
